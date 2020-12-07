@@ -88,11 +88,11 @@ namespace Lunchbox
 
             ops[0x0A] = () => A = memory.Ram[BC];
             ops[0x1A] = () => A = memory.Ram[DE];
-            ops[0xFA] = () => A = memory.Ram[getTwoBitesFromRam()];
+            ops[0xFA] = () => A = memory.Ram[GetTwoBitesFromRam()];
 
             ops[0x02] = () => memory.Ram[BC] = A;
             ops[0x12] = () => memory.Ram[DE] = A;
-            ops[0xEA] = () => memory.Ram[getTwoBitesFromRam()] = A;
+            ops[0xEA] = () => memory.Ram[GetTwoBitesFromRam()] = A;
 
             ops[0xF0] = () => A = memory.Ram[0xFF00 + memory.Ram[++PC]];
             ops[0xE0] = () => memory.Ram[0xFF00 + memory.Ram[++PC]] = A;
@@ -104,10 +104,10 @@ namespace Lunchbox
             ops[0x2A] = () => A = memory.Ram[HL + 1];
             ops[0x3A] = () => A = memory.Ram[HL - 1];
 
-            ops[0x01] = () => BC = getTwoBitesFromRam();
-            ops[0x11] = () => DE = getTwoBitesFromRam();
-            ops[0x21] = () => HL = getTwoBitesFromRam();
-            ops[0x31] = () => SP = getTwoBitesFromRam();
+            ops[0x01] = () => BC = GetTwoBitesFromRam();
+            ops[0x11] = () => DE = GetTwoBitesFromRam();
+            ops[0x21] = () => HL = GetTwoBitesFromRam();
+            ops[0x31] = () => SP = GetTwoBitesFromRam();
 
             ops[0xF9] = () => SP = HL;
 

@@ -4,21 +4,26 @@ namespace Lunchbox
 {
     public class Lunchbox
     {
-        Cpu cpu;
-        Memory memory;
+        private readonly Cpu cpu;
+        private readonly Memory memory;
+        public Graphic graphic;
         public DebugInfo debugInfo;
+        private int tick;
 
         // Constructor
         public Lunchbox()
         {
             memory = new Memory();
             cpu = new Cpu(memory);
+            graphic = new Graphic(memory);
             debugInfo = new DebugInfo(cpu, memory);
         }
 
-        public void run()
+        public void Run()
         {
-            cpu.run();
+            if (tick++ % 4 == 0) cpu.run();
+            // debugInfo.Update();
+            graphic.Update();
         }
 
         public Lunchbox TestRun(ushort endAddr)

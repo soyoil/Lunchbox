@@ -17,9 +17,8 @@ namespace Lunchbox_Test
         [Fact]
         public void LDTest()
         {
-            var GB = new Lunchbox.Lunchbox()
-                .InjectToMemory(0x0, new byte[] { 0x06, 0x56 })
-                .TestRun(0x1);
+            var GB = new Lunchbox.Lunchbox();
+            GB.InjectToMemory(0x0, new byte[] { 0x06, 0x56 }).TestRun(0x1);
             Assert.Equal(0x56, GB.debugInfo.RegDict["B"]);
         }
 
@@ -27,9 +26,9 @@ namespace Lunchbox_Test
         public void AddTest()
         {
             var GB = new Lunchbox.Lunchbox()
-                .InjectToMemory(0x0, new byte[] { 0x3E, 0x14, 0x06, 0x05, 0x80 })
-                .TestRun(0x4);
-            Assert.Equal(0x19, GB.debugInfo.RegDict["A"]);
+                .InjectToMemory(0x0, new byte[] { 0x3E, 0x53, 0x06, 0x41, 0x80, 0x27 })
+                .TestRun(0x5);
+            Assert.Equal(0x94, GB.debugInfo.RegDict["A"]);
         }
     }
 }

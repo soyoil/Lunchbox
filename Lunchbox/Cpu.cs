@@ -4,8 +4,8 @@ using System.Text;
 
 namespace Lunchbox
 {
-    public partial class Cpu
-    {
+     public partial class Cpu
+     {
         // 8bit registers
         private byte A { get; set; }
         private byte B { get; set; }
@@ -146,7 +146,7 @@ namespace Lunchbox
             } while (PC++ != endAddr);
         }
 
-        private ushort getTwoBitesFromRam()
+        private ushort GetTwoBitesFromRam()
         {
             return (ushort)(memory.Ram[++PC] + memory.Ram[++PC] * 0x100);
         }
