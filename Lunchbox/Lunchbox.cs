@@ -21,14 +21,18 @@ namespace Lunchbox
 
         public void Run()
         {
-            if (tick++ % 4 == 0) cpu.run();
+            if (tick++ % 4 == 0) cpu.Run();
             // debugInfo.Update();
             graphic.Update();
         }
 
-        public Lunchbox TestRun(ushort endAddr)
+        public Lunchbox TestRun()
         {
-            cpu.TestRun(endAddr);
+            for (int i = 0; i < 4; i++)
+            {
+                if (tick++ % 4 == 0) cpu.Run();
+                graphic.Update();
+            }
             debugInfo.Update();
             return this;
         }

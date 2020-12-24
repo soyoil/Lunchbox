@@ -99,10 +99,10 @@ namespace Lunchbox
             ops[0xF2] = () => A = memory.Ram[0xFF00 + C];
             ops[0xE2] = () => memory.Ram[0xFF00 + C] = A;
 
-            ops[0x22] = () => memory.Ram[HL + 1] = A;
-            ops[0x32] = () => memory.Ram[HL - 1] = A;
-            ops[0x2A] = () => A = memory.Ram[HL + 1];
-            ops[0x3A] = () => A = memory.Ram[HL - 1];
+            ops[0x22] = () => memory.Ram[HL++] = A;
+            ops[0x32] = () => memory.Ram[HL--] = A;
+            ops[0x2A] = () => A = memory.Ram[HL++];
+            ops[0x3A] = () => A = memory.Ram[HL--];
 
             ops[0x01] = () => BC = GetTwoBitesFromRam();
             ops[0x11] = () => DE = GetTwoBitesFromRam();
@@ -265,6 +265,62 @@ namespace Lunchbox
             };
 
             ops[0x00] = () => { };
+            ops[0x76] = () => 
+            { 
+                // HALT, TODO
+            };
+            ops[0x10] = () =>
+            {
+                // STOP, TODO
+            };
+
+            ops[0xF3] = () => IME = false;
+            ops[0xFB] = () => IME = true;
+
+            ops[0x07] = () => RotateLeft(ref A, true, false);
+            ops[0x17] = () => RotateLeft(ref A, false, false);
+
+            ops[0xC3] = () => AbsoluteJump();
+            ops[0xDA] = () => AbsoluteJump(Flags.C, true);
+            ops[0xD2] = () => AbsoluteJump(Flags.C, false);
+            ops[0xCA] = () => AbsoluteJump(Flags.Z, true);
+            ops[0xC2] = () => AbsoluteJump(Flags.Z, false);
+            ops[0xE9] = () => PC = (ushort)(HL - 1);
+
+            ops[0x18] = () => RelativeJump();
+            ops[0x38] = () => RelativeJump(Flags.C, true);
+            ops[0x30] = () => RelativeJump(Flags.C, false);
+            ops[0x28] = () => RelativeJump(Flags.Z, true);
+            ops[0x20] = () => RelativeJump(Flags.Z, false);
+
+            ops[0xCD] = () => Call();
+            ops[0xDC] = () => Call(Flags.C, true);
+            ops[0xD4] = () => Call(Flags.C, false);
+            ops[0xCC] = () => Call(Flags.Z, true);
+            ops[0xC4] = () => Call(Flags.Z, false);
+
+            ops[0xC9] = () => Ret();
+            ops[0xD8] = () => Ret(Flags.C, true);
+            ops[0xD0] = () => Ret(Flags.C, false);
+            ops[0xC8] = () => Ret(Flags.Z, true);
+            ops[0xC0] = () => Ret(Flags.Z, false);
+
+            ops[0xD9] = () =>
+            {
+                IME = true;
+                Ret();
+            };
+
+            ops[0xC7] = () => Rst(0x00);
+            ops[0xCF] = () => Rst(0x08);
+            ops[0xD7] = () => Rst(0x10);
+            ops[0xDF] = () => Rst(0x18);
+            ops[0xE7] = () => Rst(0x20);
+            ops[0xEF] = () => Rst(0x28);
+            ops[0xF7] = () => Rst(0x30);
+            ops[0xFF] = () => Rst(0x38);
+
+            ops[0xCB] = () => PrefixCB();
         }
     }
 }

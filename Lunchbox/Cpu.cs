@@ -4,21 +4,23 @@ using System.Text;
 
 namespace Lunchbox
 {
-     public partial class Cpu
-     {
+    public partial class Cpu
+    {
         // 8bit registers
-        private byte A { get; set; }
-        private byte B { get; set; }
-        private byte C { get; set; }
-        private byte D { get; set; }
-        private byte E { get; set; }
-        private Flags F { get; set; }
-        private byte H { get; set; }
-        private byte L { get; set; }
+        private byte A;
+        private byte B;
+        private byte C;
+        private byte D;
+        private byte E;
+        private Flags F;
+        private byte H;
+        private byte L;
 
         // 16bit registers
         private ushort SP { get; set; }
         internal ushort PC { get; set; }
+
+        private bool IME;
 
         // Pair registers
         private ushort AF
@@ -98,7 +100,7 @@ namespace Lunchbox
             C = 1 << 4,
         };
 
-        private Action[] ops;
+        private readonly Action[] ops;
 
         private readonly Memory memory;
 
@@ -109,7 +111,7 @@ namespace Lunchbox
             F = 0;
             PC = 0;
             memory = memoryPtr;
-            ops = new Action[0xFF];
+            ops = new Action[0x100];
             RegisterOps();
         }
 
@@ -130,7 +132,7 @@ namespace Lunchbox
             return F.HasFlag(flag);
         }
 
-        public void run()
+        public void Run()
         {
             byte opcode = memory.Ram[PC];
             ops[opcode]();
@@ -153,19 +155,19 @@ namespace Lunchbox
 
         private void Push(ushort value)
         {
-            memory.Ram[--SP] = (byte)(value >> 4);
+            memory.Ram[--SP] = (byte)(value >> 8);
             memory.Ram[--SP] = (byte)(value & 0xFF);
         }
 
         private ushort Pop()
         {
-            return (ushort)(memory.Ram[++SP] + (memory.Ram[SP] << 4));
+            return (ushort)(memory.Ram[SP++] + (memory.Ram[SP++] << 8));
         }
 
         private void Add(byte value, bool isADC = false)
         {
-            var result = A + value + Convert.ToInt32(isADC);
-            SetFlag(Flags.Z, result == 0);
+            int result = A + value + Convert.ToInt32(isADC);
+            SetFlag(Flags.Z, (byte)result == 0);
             SetFlag(Flags.N, false);
             SetFlag(Flags.H, (A & 0xF) + (value & 0xF) + Convert.ToInt32(isADC) > 0xF);
             SetFlag(Flags.C, result > 0xFF);
@@ -199,7 +201,7 @@ namespace Lunchbox
 
         private byte Cp(byte value, bool isSBC = false)
         {
-            var result = A - value - Convert.ToInt32(isSBC);
+            int result = A - value - Convert.ToInt32(isSBC);
             SetFlag(Flags.Z, result == 0);
             SetFlag(Flags.N, true);
             SetFlag(Flags.H, (A & 0xF) + (value & 0xF) + Convert.ToInt32(isSBC) < 0);
@@ -244,7 +246,7 @@ namespace Lunchbox
 
         private byte Decrement(byte value)
         {
-            SetFlag(Flags.Z, value == 0);
+            SetFlag(Flags.Z, value == 1);
             SetFlag(Flags.N, true);
             SetFlag(Flags.H, (value & 0xF) == 0);
             return (byte)(value - 1);
@@ -257,7 +259,7 @@ namespace Lunchbox
             Flags setFlagC = 0;
             if (GetFlag(Flags.H) || (!GetFlag(Flags.N) && (a & 0xF) > 9))
                 collection |= 0x6;
-            if(GetFlag(Flags.C) || (!GetFlag(Flags.N) && a > 0x99))
+            if (GetFlag(Flags.C) || (!GetFlag(Flags.N) && a > 0x99))
             {
                 collection |= 0x60;
                 setFlagC = Flags.C;
@@ -268,6 +270,80 @@ namespace Lunchbox
             F &= ~(Flags.Z | Flags.H | Flags.C);
             F |= setFlagC | setFlagZ;
             A = (byte)a;
+        }
+
+        private void RotateLeft(ref byte register, bool circular, bool onlyShift)
+        {
+            byte top = (byte)(register >> 7);
+            register = (byte)(register << 1);
+            if (onlyShift)
+            {
+                SetFlag(Flags.Z, register == 0);
+            }
+            else
+            {
+                register += circular ? top : Convert.ToByte(F.HasFlag(Flags.C));
+                SetFlag(Flags.Z, false);
+            }
+            SetFlag(Flags.C, Convert.ToBoolean(top));
+            SetFlag(Flags.N, false);
+            SetFlag(Flags.H, false);
+        }
+
+        private void AbsoluteJump(Flags flag = 0, bool isTrue = false)
+        {
+            if (flag == 0 || F.HasFlag(flag) == isTrue)
+                PC = (ushort)(GetTwoBitesFromRam() - 1);
+            else
+                PC += 2;
+        }
+
+        private void RelativeJump(Flags flag = 0, bool isTrue = false)
+        {
+            if (flag == 0 || F.HasFlag(flag) == isTrue)
+                PC = (ushort)(++PC + (sbyte)memory.Ram[PC]);
+            else
+                PC++;
+        }
+
+        private void Call(Flags flag = 0, bool isTrue = false)
+        {
+            if (flag == 0 || F.HasFlag(flag) == isTrue)
+            {
+                Push(PC);
+                PC = (ushort)(GetTwoBitesFromRam() - 1);
+            }
+            else
+            {
+                PC += 2;
+            }
+        }
+
+        private void Ret(Flags flag = 0, bool isTrue = false)
+        {
+            if (flag == 0 || F.HasFlag(flag) == isTrue) PC = (ushort)(Pop() + 2);
+        }
+
+        private void Rst(byte addr)
+        {
+            Push(PC);
+            PC = (ushort)(addr & 0xFF - 1);
+        }
+
+        private void PrefixCB()
+        {
+            switch (memory.Ram[++PC])
+            {
+                case 0x11:
+                    RotateLeft(ref C, false, false);
+                    break;
+
+                case 0x7C:
+                    SetFlag(Flags.Z, H >> 7 == 0);
+                    SetFlag(Flags.N, false);
+                    SetFlag(Flags.H, true);
+                    break;
+            }
         }
     }
 }

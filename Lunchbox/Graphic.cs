@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Lunchbox
 {
@@ -10,13 +7,20 @@ namespace Lunchbox
     {
         private const byte displayHeight = 144;
 
-        public Dictionary<string, byte> DisplayData { get; private set; }
+        public struct DisplayData
+        {
+            public byte x;
+            public byte y;
+            public byte color;
+        }
+
+        public DisplayData displayData;
 
         private readonly Memory memory;
         private readonly Fetcher fetcher;
         private readonly PixelFIFO pixelFIFO;
-        private byte x;
         private int tick;
+        public int fulltick;
         private bool isProcessing;
 
         private Action action;
@@ -30,12 +34,7 @@ namespace Lunchbox
             this.memory = memory;
             pixelFIFO = new PixelFIFO(this, memory);
             fetcher = new Fetcher(this, memory, pixelFIFO);
-            DisplayData = new Dictionary<string, byte>
-            {
-                {"x", 0 },
-                {"y", 0 },
-                {"color", 0 },
-            };
+            displayData = new DisplayData();
 
             ScanOAM = () =>
             {
@@ -44,8 +43,9 @@ namespace Lunchbox
 
             ScanVRAM = () =>
             {
+                tick++;
                 fetcher.Run();
-                if (pixelFIFO.Count > 8)
+                if (pixelFIFO.Count != 0)
                 {
                     isProcessing = pixelFIFO.DequeueData();
                     if (!isProcessing)
@@ -53,7 +53,9 @@ namespace Lunchbox
                         pixelFIFO.Reset();
                         fetcher.Reset();
                     }
+                    return;
                 }
+                isProcessing = true;
             };
 
             HBlank = () =>
@@ -65,11 +67,13 @@ namespace Lunchbox
             {
                 isProcessing = ++tick < 456;
             };
+
+            action = ScanOAM;
         }
 
         internal void Update()
         {
-            if (!memory.LCDC.HasFlag(Memory.LCDCReg.IsEnableDisplay)) return;
+            // if (!memory.LCDC.HasFlag(Memory.LCDCReg.IsEnableDisplay)) return;
 
             action();
             if (isProcessing) return;
@@ -82,13 +86,14 @@ namespace Lunchbox
                     break;
 
                 case Memory.STATReg.ScanVRAMMode:
-                    memory.STAT |= Memory.STATReg.HBlankMode;
+                    memory.STAT &= (Memory.STATReg)0xFC; // Memory.STATReg.HBlankMode;
                     action = HBlank;
                     break;
 
                 case Memory.STATReg.HBlankMode:
+                    fulltick += tick;
                     tick = 0;
-                    if (++memory.LY == displayHeight)
+                    if (memory.LY++ == displayHeight - 1)
                     {
                         memory.STAT |= Memory.STATReg.VBlankMode;
                         action = VBlank;
@@ -101,13 +106,15 @@ namespace Lunchbox
                     break;
 
                 case Memory.STATReg.VBlankMode:
+                    fulltick += tick;
                     tick = 0;
-                    if (++memory.LY > displayHeight + 9)
+                    if (memory.LY++ >= displayHeight + 9)
                     {
                         memory.LY = 0;
-                        memory.STAT |= Memory.STATReg.ScanOAMMode;
+                        memory.STAT++; // Memory.STATReg.ScanOAMMode;
                         action = ScanOAM;
-                    } else
+                    }
+                    else
                     {
                         action = VBlank;
                     }
@@ -135,22 +142,23 @@ namespace Lunchbox
             {
                 for (int i = 7; i >= 0; i--)
                 {
-                    byte data = (byte)(((data1 >> i) * 0b10) + (data0 >> i));
+                    byte data = (byte)((((data1 >> i) * 0b10) + ((data0 >> i) & 1)) & 0b11);
                     FIFO.Enqueue(data);
                 }
             }
 
             internal bool DequeueData()
             {
-                graphic.DisplayData["x"] = x++;
-                graphic.DisplayData["y"] = memory.LY;
-                graphic.DisplayData["color"] = FIFO.Dequeue();
+                graphic.displayData.x = x++;
+                graphic.displayData.y = memory.LY;
+                graphic.displayData.color = FIFO.Dequeue();
                 return !(x == 160);
             }
 
             internal void Reset()
             {
                 x = 0;
+                FIFO.Clear();
             }
         }
 
@@ -161,21 +169,20 @@ namespace Lunchbox
                 ReadTileID,
                 ReadData0,
                 ReadData1,
-                Sleep
+                Sleep,
             };
 
             private readonly Memory memory;
-            private readonly Graphic graphic;
             private readonly PixelFIFO pixelFIFO;
             private FetcherState state;
             private sbyte tileID;
             private byte data0;
             private byte data1;
             private bool workFlag;
+            private byte currentX;
 
             internal Fetcher(Graphic graphic, Memory memory, PixelFIFO pixelFIFO)
             {
-                this.graphic = graphic;
                 this.memory = memory;
                 this.pixelFIFO = pixelFIFO;
                 state = FetcherState.ReadTileID;
@@ -191,8 +198,8 @@ namespace Lunchbox
                 {
                     case FetcherState.ReadTileID:
                         ushort tilemap = memory.LCDC.HasFlag(Memory.LCDCReg.SelectBGTileMap) ? 0x9C00 : 0x9800;
-                        byte xAddress = (byte)(((memory.SCX / 8) + graphic.x) & 0x1F);
-                        byte yAddress = (byte)((((memory.SCY + memory.LY) / 8) & 0x1F) * 0x20);
+                        byte xAddress = (byte)(((memory.SCX / 8) + currentX) & 0x1F);
+                        ushort yAddress = (ushort)(((memory.SCY / 8 + memory.LY / 8) & 0x1F) * 0x20);
                         tileID = (sbyte)memory.Ram[tilemap + xAddress + yAddress];
                         state = FetcherState.ReadData0;
                         break;
@@ -208,10 +215,10 @@ namespace Lunchbox
                         break;
                 }
 
-                if (state == FetcherState.Sleep)
+                if (state == FetcherState.Sleep && pixelFIFO.Count <= 8)
                 {
                     pixelFIFO.EnqueueData(data0, data1);
-                    graphic.x++;
+                    currentX++;
                     state = FetcherState.ReadTileID;
                 }
             }
@@ -227,6 +234,7 @@ namespace Lunchbox
                 state = FetcherState.ReadTileID;
                 workFlag = true;
                 tileID = (sbyte)(data0 = data1 = 0);
+                currentX = 0;
             }
         }
     }

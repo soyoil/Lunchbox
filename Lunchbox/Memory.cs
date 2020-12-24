@@ -1,4 +1,6 @@
 ﻿using System;
+using System.IO;
+
 namespace Lunchbox
 {
     public partial class Memory
@@ -45,6 +47,11 @@ namespace Lunchbox
         {
             Ram = new byte[0x10000];
             Array.Copy(bootRom, Ram, bootRom.Length);
+            using (var fs = new FileStream(@"d:\gameboy\gbcal\main.gb", FileMode.Open, FileAccess.Read))
+            {
+                fs.Seek(0x100, SeekOrigin.Begin);
+                fs.Read(Ram, 0x100, (int)fs.Length);
+            }
         }
     }
 }

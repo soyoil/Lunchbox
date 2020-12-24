@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Data;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Windows;
-using Lunchbox;
+﻿using System.Windows;
 
 namespace Lunchbox_Frontend
 {
@@ -14,10 +7,8 @@ namespace Lunchbox_Frontend
     /// </summary>
     public partial class App : Application
     {
-        private readonly Lunchbox.Lunchbox lunchbox;
         public App()
         {
-            lunchbox = new Lunchbox.Lunchbox();
         }
     }
 }

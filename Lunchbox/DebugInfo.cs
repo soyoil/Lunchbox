@@ -5,6 +5,7 @@ namespace Lunchbox
     public class DebugInfo
     {
         public byte Opcode;
+        public ushort Address;
         public string Operand;
         public Dictionary<string, ushort> RegDict;
 
@@ -22,6 +23,7 @@ namespace Lunchbox
         {
             RegDict = cpuptr.RegDict;
             Opcode = memptr.Ram[cpuptr.PC];
+            Address = cpuptr.PC;
         }
     }
 }
