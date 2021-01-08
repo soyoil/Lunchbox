@@ -17,10 +17,10 @@ namespace Lunchbox
         private byte L;
 
         // 16bit registers
-        private ushort SP { get; set; }
+        private ushort SP;
         internal ushort PC { get; set; }
 
-        private bool IME;
+        internal bool IME;
 
         // Pair registers
         private ushort AF
@@ -105,6 +105,7 @@ namespace Lunchbox
         private readonly Memory memory;
 
         private int JumpOpCycle;
+        private bool isHalted;
 
         // Constructor
         internal Cpu(Memory memoryPtr = null)
@@ -115,6 +116,7 @@ namespace Lunchbox
             memory = memoryPtr;
             ops = new Action[0x100];
             JumpOpCycle = 0;
+            isHalted = false;
             RegisterOps();
         }
 
@@ -137,6 +139,22 @@ namespace Lunchbox
 
         public int Run()
         {
+            if (isHalted)
+            {
+                if (memory.IF != 0)
+                {
+                    isHalted = false;
+                    // PC--;
+                }
+                return 4;
+            }
+
+            if (memory.IF != 0 && IME)
+            {
+                Push(PC);
+                PC = ResolveIF();
+            }
+
             byte opcode = memory[PC];
             ops[opcode]();
             PC++;
@@ -150,6 +168,40 @@ namespace Lunchbox
                 byte opcode = memory[PC];
                 ops[opcode]();
             } while (PC++ != endAddr);
+        }
+
+        private ushort ResolveIF()
+        {
+            IME = false;
+            if (memory.IF.HasFlag(Memory.IFReg.IsRequestedVBlankInterrupt))
+            {
+                memory.IF &= ~Memory.IFReg.IsRequestedVBlankInterrupt;
+                return 0x0040;
+            }
+            else if (memory.IF.HasFlag(Memory.IFReg.IsRequestedSTATInterrupt))
+            {
+                memory.IF &= ~Memory.IFReg.IsRequestedSTATInterrupt;
+                return 0x0048;
+            }
+            else if (memory.IF.HasFlag(Memory.IFReg.IsRequestedTimerInterrupt))
+            {
+                memory.IF &= ~Memory.IFReg.IsRequestedTimerInterrupt;
+                return 0x0050;
+            }
+            else if (memory.IF.HasFlag(Memory.IFReg.IsRequestedSerialInterrupt))
+            {
+                memory.IF &= ~Memory.IFReg.IsRequestedSerialInterrupt;
+                return 0x0058;
+            }
+            else if (memory.IF.HasFlag(Memory.IFReg.IsRequestedJoypadInterrupt))
+            {
+                memory.IF &= ~Memory.IFReg.IsRequestedJoypadInterrupt;
+                return 0x0060;
+            }
+            else
+            {
+                return PC;
+            }
         }
 
         private ushort GetTwoBitesFromRam()
@@ -326,7 +378,7 @@ namespace Lunchbox
         {
             if (flag == 0 || F.HasFlag(flag) == isTrue)
             {
-                Push(PC);
+                Push((ushort)(PC + 2));
                 PC = (ushort)(GetTwoBitesFromRam() - 1);
                 JumpOpCycle = 6;
             }
@@ -341,7 +393,7 @@ namespace Lunchbox
         {
             if (flag == 0 || F.HasFlag(flag) == isTrue)
             {
-                PC = (ushort)(Pop() + 2);
+                PC = Pop();
                 JumpOpCycle = 5;
             }
             else

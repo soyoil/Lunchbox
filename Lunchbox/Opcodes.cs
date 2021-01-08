@@ -265,9 +265,10 @@ namespace Lunchbox
             };
 
             ops[0x00] = () => { };
-            ops[0x76] = () => 
-            { 
-                // HALT, TODO
+            ops[0x76] = () =>
+            {
+                // PC++;
+                isHalted = true;
             };
             ops[0x10] = () =>
             {

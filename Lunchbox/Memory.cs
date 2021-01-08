@@ -25,6 +25,7 @@ namespace Lunchbox
 
         private readonly byte[] Ram;
 
+        internal IFReg IF { get => (IFReg)Ram[0xFF0F]; set => Ram[0xFF0F] = (byte)value; }
         internal LCDCReg LCDC { get => (LCDCReg)Ram[0xFF40]; set => Ram[0xFF40] = (byte)value; }
         internal STATReg STAT { get => (STATReg)Ram[0xFF41]; set => Ram[0xFF41] = (byte)value; }
         internal byte SCY { get => Ram[0xFF42]; set => Ram[0xFF42] = value; }
@@ -34,6 +35,7 @@ namespace Lunchbox
         internal byte BGP { get => Ram[0xFF47]; set => Ram[0xFF47] = value; }
         internal byte WY { get => Ram[0xFF4A]; set => Ram[0xFF4A] = value; }
         internal byte WX { get => Ram[0xFF4B]; set => Ram[0xFF4B] = value; }
+        internal IEReg IE { get => (IEReg)Ram[0xFFFF]; set => Ram[0xFFFF] = (byte)value; }
 
         [Flags]
         internal enum LCDCReg : byte
@@ -60,6 +62,26 @@ namespace Lunchbox
             VBlankMode = 1,
             ScanOAMMode = 2,
             ScanVRAMMode = 3
+        }
+
+        [Flags]
+        internal enum IEReg : byte
+        {
+            IsEnableVBlankInterrupt = 1,
+            IsEnableSTATInterrupt = 1 << 1,
+            IsEnableTimerInterrupt = 1 << 2,
+            IsEnableSerialInterrupt = 1 << 3,
+            IsEnableJoypadInterrupt = 1 << 4
+        }
+
+        [Flags]
+        internal enum IFReg : byte
+        {
+            IsRequestedVBlankInterrupt = 1,
+            IsRequestedSTATInterrupt = 1 << 1,
+            IsRequestedTimerInterrupt = 1 << 2,
+            IsRequestedSerialInterrupt = 1 << 3,
+            IsRequestedJoypadInterrupt = 1 << 4
         }
 
         internal Memory(string filepath)
