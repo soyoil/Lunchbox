@@ -1,5 +1,5 @@
-﻿using System;
-using System.ComponentModel;
+﻿using Microsoft.Win32;
+using System;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -15,12 +15,19 @@ namespace Lunchbox_Frontend
         public WriteableBitmap Screen { get; set; }
 
         readonly EmulatorModel emulatorModel;
+        readonly OpenFileDialog dialog;
         readonly DispatcherTimer timer;
 
-        public MainWindowViewModel()
+        public MainWindowViewModel(Window window)
         {
             Screen = new WriteableBitmap(width, height, 96, 96, PixelFormats.Pbgra32, null);
-            emulatorModel = new EmulatorModel(height, width);
+            dialog = new OpenFileDialog()
+            {
+                Filter = "GameBoy ROM (*.gb)|*.gb"
+            };
+
+            if (dialog.ShowDialog() == false) window.Close();
+            emulatorModel = new EmulatorModel(height, width, dialog.FileName);
 
             timer = new DispatcherTimer
             {

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Lunchbox
 {
-    public partial class Cpu
+    internal partial class Cpu
     {
         // 8bit registers
         private byte A;
@@ -104,14 +104,17 @@ namespace Lunchbox
 
         private readonly Memory memory;
 
+        private int JumpOpCycle;
+
         // Constructor
-        public Cpu(Memory memoryPtr = null)
+        internal Cpu(Memory memoryPtr = null)
         {
             A = B = C = D = E = H = L = 0;
             F = 0;
             PC = 0;
             memory = memoryPtr;
             ops = new Action[0x100];
+            JumpOpCycle = 0;
             RegisterOps();
         }
 
@@ -132,36 +135,37 @@ namespace Lunchbox
             return F.HasFlag(flag);
         }
 
-        public void Run()
+        public int Run()
         {
-            byte opcode = memory.Ram[PC];
+            byte opcode = memory[PC];
             ops[opcode]();
             PC++;
+            return opcycle[opcode] == 0 ? JumpOpCycle * 4 : opcycle[opcode] * 4;
         }
 
         internal void TestRun(ushort endAddr)
         {
             do
             {
-                byte opcode = memory.Ram[PC];
+                byte opcode = memory[PC];
                 ops[opcode]();
             } while (PC++ != endAddr);
         }
 
         private ushort GetTwoBitesFromRam()
         {
-            return (ushort)(memory.Ram[++PC] + memory.Ram[++PC] * 0x100);
+            return (ushort)(memory[++PC] + memory[++PC] * 0x100);
         }
 
         private void Push(ushort value)
         {
-            memory.Ram[--SP] = (byte)(value >> 8);
-            memory.Ram[--SP] = (byte)(value & 0xFF);
+            memory[--SP] = (byte)(value >> 8);
+            memory[--SP] = (byte)(value & 0xFF);
         }
 
         private ushort Pop()
         {
-            return (ushort)(memory.Ram[SP++] + (memory.Ram[SP++] << 8));
+            return (ushort)(memory[SP++] + (memory[SP++] << 8));
         }
 
         private void Add(byte value, bool isADC = false)
@@ -185,7 +189,7 @@ namespace Lunchbox
 
         private ushort AddSP()
         {
-            var e = memory.Ram[++PC];
+            var e = memory[++PC];
             var result = SP + e;
             SetFlag(Flags.Z, false);
             SetFlag(Flags.N, false);
@@ -293,17 +297,29 @@ namespace Lunchbox
         private void AbsoluteJump(Flags flag = 0, bool isTrue = false)
         {
             if (flag == 0 || F.HasFlag(flag) == isTrue)
+            {
                 PC = (ushort)(GetTwoBitesFromRam() - 1);
+                JumpOpCycle = 4;
+            }
             else
+            {
                 PC += 2;
+                JumpOpCycle = 3;
+            }
         }
 
         private void RelativeJump(Flags flag = 0, bool isTrue = false)
         {
             if (flag == 0 || F.HasFlag(flag) == isTrue)
-                PC = (ushort)(++PC + (sbyte)memory.Ram[PC]);
+            {
+                PC = (ushort)(++PC + (sbyte)memory[PC]);
+                JumpOpCycle = 3;
+            }
             else
+            {
                 PC++;
+                JumpOpCycle = 2;
+            }
         }
 
         private void Call(Flags flag = 0, bool isTrue = false)
@@ -312,16 +328,24 @@ namespace Lunchbox
             {
                 Push(PC);
                 PC = (ushort)(GetTwoBitesFromRam() - 1);
+                JumpOpCycle = 6;
             }
             else
             {
                 PC += 2;
+                JumpOpCycle = 4;
             }
         }
 
         private void Ret(Flags flag = 0, bool isTrue = false)
         {
-            if (flag == 0 || F.HasFlag(flag) == isTrue) PC = (ushort)(Pop() + 2);
+            if (flag == 0 || F.HasFlag(flag) == isTrue)
+            {
+                PC = (ushort)(Pop() + 2);
+                JumpOpCycle = 5;
+            }
+            else
+                JumpOpCycle = 2;
         }
 
         private void Rst(byte addr)
@@ -332,7 +356,7 @@ namespace Lunchbox
 
         private void PrefixCB()
         {
-            switch (memory.Ram[++PC])
+            switch (memory[++PC])
             {
                 case 0x11:
                     RotateLeft(ref C, false, false);

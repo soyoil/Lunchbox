@@ -1,6 +1,6 @@
 ﻿namespace Lunchbox
 {
-    public partial class Memory
+    internal partial class Memory
     {
         private static readonly byte[] bootRom =
         {

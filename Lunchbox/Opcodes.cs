@@ -1,6 +1,6 @@
 namespace Lunchbox
 {
-    public partial class Cpu
+    internal partial class Cpu
     {
         private void RegisterOps()
         {
@@ -60,49 +60,49 @@ namespace Lunchbox
             ops[0x7D] = () => A = L;
             ops[0x7F] = () => { };
 
-            ops[0x06] = () => B = memory.Ram[++PC];
-            ops[0x0E] = () => C = memory.Ram[++PC];
-            ops[0x16] = () => D = memory.Ram[++PC];
-            ops[0x1E] = () => E = memory.Ram[++PC];
-            ops[0x26] = () => H = memory.Ram[++PC];
-            ops[0x2E] = () => L = memory.Ram[++PC];
-            ops[0x3E] = () => A = memory.Ram[++PC];
+            ops[0x06] = () => B = memory[++PC];
+            ops[0x0E] = () => C = memory[++PC];
+            ops[0x16] = () => D = memory[++PC];
+            ops[0x1E] = () => E = memory[++PC];
+            ops[0x26] = () => H = memory[++PC];
+            ops[0x2E] = () => L = memory[++PC];
+            ops[0x3E] = () => A = memory[++PC];
 
-            ops[0x46] = () => B = memory.Ram[HL];
-            ops[0x4E] = () => C = memory.Ram[HL];
-            ops[0x56] = () => D = memory.Ram[HL];
-            ops[0x5E] = () => E = memory.Ram[HL];
-            ops[0x66] = () => H = memory.Ram[HL];
-            ops[0x6E] = () => L = memory.Ram[HL];
-            ops[0x7E] = () => A = memory.Ram[HL];
+            ops[0x46] = () => B = memory[HL];
+            ops[0x4E] = () => C = memory[HL];
+            ops[0x56] = () => D = memory[HL];
+            ops[0x5E] = () => E = memory[HL];
+            ops[0x66] = () => H = memory[HL];
+            ops[0x6E] = () => L = memory[HL];
+            ops[0x7E] = () => A = memory[HL];
 
-            ops[0x70] = () => memory.Ram[HL] = B;
-            ops[0x71] = () => memory.Ram[HL] = C;
-            ops[0x72] = () => memory.Ram[HL] = D;
-            ops[0x73] = () => memory.Ram[HL] = E;
-            ops[0x74] = () => memory.Ram[HL] = H;
-            ops[0x75] = () => memory.Ram[HL] = L;
-            ops[0x77] = () => memory.Ram[HL] = A;
+            ops[0x70] = () => memory[HL] = B;
+            ops[0x71] = () => memory[HL] = C;
+            ops[0x72] = () => memory[HL] = D;
+            ops[0x73] = () => memory[HL] = E;
+            ops[0x74] = () => memory[HL] = H;
+            ops[0x75] = () => memory[HL] = L;
+            ops[0x77] = () => memory[HL] = A;
 
-            ops[0x36] = () => memory.Ram[HL] = memory.Ram[++PC];
+            ops[0x36] = () => memory[HL] = memory[++PC];
 
-            ops[0x0A] = () => A = memory.Ram[BC];
-            ops[0x1A] = () => A = memory.Ram[DE];
-            ops[0xFA] = () => A = memory.Ram[GetTwoBitesFromRam()];
+            ops[0x0A] = () => A = memory[BC];
+            ops[0x1A] = () => A = memory[DE];
+            ops[0xFA] = () => A = memory[GetTwoBitesFromRam()];
 
-            ops[0x02] = () => memory.Ram[BC] = A;
-            ops[0x12] = () => memory.Ram[DE] = A;
-            ops[0xEA] = () => memory.Ram[GetTwoBitesFromRam()] = A;
+            ops[0x02] = () => memory[BC] = A;
+            ops[0x12] = () => memory[DE] = A;
+            ops[0xEA] = () => memory[GetTwoBitesFromRam()] = A;
 
-            ops[0xF0] = () => A = memory.Ram[0xFF00 + memory.Ram[++PC]];
-            ops[0xE0] = () => memory.Ram[0xFF00 + memory.Ram[++PC]] = A;
-            ops[0xF2] = () => A = memory.Ram[0xFF00 + C];
-            ops[0xE2] = () => memory.Ram[0xFF00 + C] = A;
+            ops[0xF0] = () => A = memory[0xFF00 + memory[++PC]];
+            ops[0xE0] = () => memory[0xFF00 + memory[++PC]] = A;
+            ops[0xF2] = () => A = memory[0xFF00 + C];
+            ops[0xE2] = () => memory[0xFF00 + C] = A;
 
-            ops[0x22] = () => memory.Ram[HL++] = A;
-            ops[0x32] = () => memory.Ram[HL--] = A;
-            ops[0x2A] = () => A = memory.Ram[HL++];
-            ops[0x3A] = () => A = memory.Ram[HL--];
+            ops[0x22] = () => memory[HL++] = A;
+            ops[0x32] = () => memory[HL--] = A;
+            ops[0x2A] = () => A = memory[HL++];
+            ops[0x3A] = () => A = memory[HL--];
 
             ops[0x01] = () => BC = GetTwoBitesFromRam();
             ops[0x11] = () => DE = GetTwoBitesFromRam();
@@ -113,8 +113,8 @@ namespace Lunchbox
 
             ops[0x08] = () =>
             {
-                memory.Ram[++PC] = (byte)(SP & 0xFF);
-                memory.Ram[++PC] = (byte)(SP >> 4);
+                memory[++PC] = (byte)(SP & 0xFF);
+                memory[++PC] = (byte)(SP >> 4);
             };
 
             ops[0xC5] = () => Push(BC);
@@ -134,8 +134,8 @@ namespace Lunchbox
             ops[0x84] = () => Add(H);
             ops[0x85] = () => Add(L);
             ops[0x87] = () => Add(A);
-            ops[0xC6] = () => Add(memory.Ram[++PC]);
-            ops[0x86] = () => Add(memory.Ram[HL]);
+            ops[0xC6] = () => Add(memory[++PC]);
+            ops[0x86] = () => Add(memory[HL]);
 
             ops[0x88] = () => Add(B, true);
             ops[0x89] = () => Add(C, true);
@@ -144,8 +144,8 @@ namespace Lunchbox
             ops[0x8C] = () => Add(H, true);
             ops[0x8D] = () => Add(L, true);
             ops[0x8F] = () => Add(A, true);
-            ops[0xCE] = () => Add(memory.Ram[++PC], true);
-            ops[0x8E] = () => Add(memory.Ram[HL], true);
+            ops[0xCE] = () => Add(memory[++PC], true);
+            ops[0x8E] = () => Add(memory[HL], true);
 
             ops[0x90] = () => Sub(B);
             ops[0x91] = () => Sub(C);
@@ -154,8 +154,8 @@ namespace Lunchbox
             ops[0x94] = () => Sub(H);
             ops[0x95] = () => Sub(L);
             ops[0x97] = () => Sub(A);
-            ops[0xD6] = () => Sub(memory.Ram[++PC]);
-            ops[0x96] = () => Sub(memory.Ram[HL]);
+            ops[0xD6] = () => Sub(memory[++PC]);
+            ops[0x96] = () => Sub(memory[HL]);
 
             ops[0x98] = () => Sub(B, true);
             ops[0x99] = () => Sub(C, true);
@@ -164,8 +164,8 @@ namespace Lunchbox
             ops[0x9C] = () => Sub(H, true);
             ops[0x9D] = () => Sub(L, true);
             ops[0x9F] = () => Sub(A, true);
-            ops[0xDE] = () => Sub(memory.Ram[++PC], true);
-            ops[0x9E] = () => Sub(memory.Ram[HL], true);
+            ops[0xDE] = () => Sub(memory[++PC], true);
+            ops[0x9E] = () => Sub(memory[HL], true);
 
             ops[0xA0] = () => And(B);
             ops[0xA1] = () => And(C);
@@ -174,8 +174,8 @@ namespace Lunchbox
             ops[0xA4] = () => And(H);
             ops[0xA5] = () => And(L);
             ops[0xA7] = () => And(A);
-            ops[0xE6] = () => And(memory.Ram[++PC]);
-            ops[0xA6] = () => And(memory.Ram[HL]);
+            ops[0xE6] = () => And(memory[++PC]);
+            ops[0xA6] = () => And(memory[HL]);
 
             ops[0xB0] = () => Or(B);
             ops[0xB1] = () => Or(C);
@@ -184,8 +184,8 @@ namespace Lunchbox
             ops[0xB4] = () => Or(H);
             ops[0xB5] = () => Or(L);
             ops[0xB7] = () => Or(A);
-            ops[0xF6] = () => Or(memory.Ram[++PC]);
-            ops[0xB6] = () => Or(memory.Ram[HL]);
+            ops[0xF6] = () => Or(memory[++PC]);
+            ops[0xB6] = () => Or(memory[HL]);
 
             ops[0xA8] = () => Xor(B);
             ops[0xA9] = () => Xor(C);
@@ -194,8 +194,8 @@ namespace Lunchbox
             ops[0xAC] = () => Xor(H);
             ops[0xAD] = () => Xor(L);
             ops[0xAF] = () => Xor(A);
-            ops[0xEE] = () => Xor(memory.Ram[++PC]);
-            ops[0xAE] = () => Xor(memory.Ram[HL]);
+            ops[0xEE] = () => Xor(memory[++PC]);
+            ops[0xAE] = () => Xor(memory[HL]);
 
             ops[0xB8] = () => Cp(B);
             ops[0xB9] = () => Cp(C);
@@ -204,8 +204,8 @@ namespace Lunchbox
             ops[0xBC] = () => Cp(H);
             ops[0xBD] = () => Cp(L);
             ops[0xBF] = () => Cp(A);
-            ops[0xFE] = () => Cp(memory.Ram[++PC]);
-            ops[0xBE] = () => Cp(memory.Ram[HL]);
+            ops[0xFE] = () => Cp(memory[++PC]);
+            ops[0xBE] = () => Cp(memory[HL]);
 
             ops[0x04] = () => B = Increment(B);
             ops[0x0C] = () => C = Increment(C);
@@ -213,7 +213,7 @@ namespace Lunchbox
             ops[0x1C] = () => E = Increment(E);
             ops[0x24] = () => H = Increment(H);
             ops[0x2C] = () => L = Increment(L);
-            ops[0x34] = () => memory.Ram[HL] = Increment(memory.Ram[HL]);
+            ops[0x34] = () => memory[HL] = Increment(memory[HL]);
             ops[0x3C] = () => A = Increment(A);
 
             ops[0x05] = () => B = Decrement(B);
@@ -222,7 +222,7 @@ namespace Lunchbox
             ops[0x1D] = () => E = Decrement(E);
             ops[0x25] = () => H = Decrement(H);
             ops[0x2D] = () => L = Decrement(L);
-            ops[0x35] = () => memory.Ram[HL] = Decrement(memory.Ram[HL]);
+            ops[0x35] = () => memory[HL] = Decrement(memory[HL]);
             ops[0x3D] = () => A = Decrement(A);
 
             ops[0x09] = () => Add(BC);

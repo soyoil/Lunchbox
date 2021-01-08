@@ -1,241 +1,97 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace Lunchbox
+﻿namespace Lunchbox
 {
     public class Graphic
     {
+        private const byte displayWidth = 160;
         private const byte displayHeight = 144;
 
-        public struct DisplayData
-        {
-            public byte x;
-            public byte y;
-            public byte color;
-        }
-
-        public DisplayData displayData;
+        public readonly byte[] displayData;
 
         private readonly Memory memory;
-        private readonly Fetcher fetcher;
-        private readonly PixelFIFO pixelFIFO;
         private int tick;
-        public int fulltick;
-        private bool isProcessing;
 
-        private Action action;
-        private readonly Action ScanOAM;
-        private readonly Action ScanVRAM;
-        private readonly Action HBlank;
-        private readonly Action VBlank;
-
-        public Graphic(Memory memory)
+        internal Graphic(Memory memory)
         {
             this.memory = memory;
-            pixelFIFO = new PixelFIFO(this, memory);
-            fetcher = new Fetcher(this, memory, pixelFIFO);
-            displayData = new DisplayData();
-
-            ScanOAM = () =>
-            {
-                isProcessing = ++tick < 80;
-            };
-
-            ScanVRAM = () =>
-            {
-                tick++;
-                fetcher.Run();
-                if (pixelFIFO.Count != 0)
-                {
-                    isProcessing = pixelFIFO.DequeueData();
-                    if (!isProcessing)
-                    {
-                        pixelFIFO.Reset();
-                        fetcher.Reset();
-                    }
-                    return;
-                }
-                isProcessing = true;
-            };
-
-            HBlank = () =>
-            {
-                isProcessing = ++tick < 456;
-            };
-
-            VBlank = () =>
-            {
-                isProcessing = ++tick < 456;
-            };
-
-            action = ScanOAM;
+            displayData = new byte[displayWidth * displayHeight * 4];
+            tick = 0;
         }
+
 
         internal void Update()
         {
-            // if (!memory.LCDC.HasFlag(Memory.LCDCReg.IsEnableDisplay)) return;
-
-            action();
-            if (isProcessing) return;
-
-            switch (memory.STAT & (Memory.STATReg)0b11)
+            if (tick == 80)
             {
-                case Memory.STATReg.ScanOAMMode:
-                    memory.STAT |= Memory.STATReg.ScanVRAMMode;
-                    action = ScanVRAM;
-                    break;
-
-                case Memory.STATReg.ScanVRAMMode:
-                    memory.STAT &= (Memory.STATReg)0xFC; // Memory.STATReg.HBlankMode;
-                    action = HBlank;
-                    break;
-
-                case Memory.STATReg.HBlankMode:
-                    fulltick += tick;
-                    tick = 0;
-                    if (memory.LY++ == displayHeight - 1)
-                    {
-                        memory.STAT |= Memory.STATReg.VBlankMode;
-                        action = VBlank;
-                    }
-                    else
-                    {
-                        memory.STAT |= Memory.STATReg.ScanOAMMode;
-                        action = ScanOAM;
-                    }
-                    break;
-
-                case Memory.STATReg.VBlankMode:
-                    fulltick += tick;
-                    tick = 0;
-                    if (memory.LY++ >= displayHeight + 9)
-                    {
-                        memory.LY = 0;
-                        memory.STAT++; // Memory.STATReg.ScanOAMMode;
-                        action = ScanOAM;
-                    }
-                    else
-                    {
-                        action = VBlank;
-                    }
-                    break;
+                UpdateGraphicMode(Memory.STATReg.ScanVRAMMode);
             }
-        }
-
-        internal class PixelFIFO
-        {
-            private readonly Graphic graphic;
-            private readonly Memory memory;
-            private readonly Queue<byte> FIFO;
-            private byte x;
-
-            internal int Count { get => FIFO.Count; }
-
-            internal PixelFIFO(Graphic graphic, Memory memory)
+            else if (tick == 252)
             {
-                this.graphic = graphic;
-                this.memory = memory;
-                FIFO = new Queue<byte>(16);
+                UpdateGraphicMode(Memory.STATReg.HBlankMode);
+                // if (memory.STAT.HasFlag(Memory.STATReg.IsEnableHBlankInterrupt)) set irq lcds;
             }
-
-            internal void EnqueueData(byte data0, byte data1)
+            else if (tick == 456)
             {
-                for (int i = 7; i >= 0; i--)
+                tick = 0;
+                memory.LY++;
+                if (memory.LY < displayHeight)
                 {
-                    byte data = (byte)((((data1 >> i) * 0b10) + ((data0 >> i) & 1)) & 0b11);
-                    FIFO.Enqueue(data);
+                    UpdateBG();
+                    // if (memory.LCDC.HasFlag(Memory.LCDCReg.IsEnableWindow)) UpdateWindow();
+                    UpdateGraphicMode(Memory.STATReg.ScanOAMMode);
+                }
+                else if (memory.LY >= displayHeight + 10)
+                {
+                    memory.LY = 0;
+                    UpdateBG();
+                    // if (memory.LCDC.HasFlag(Memory.LCDCReg.IsEnableWindow)) UpdateWindow();
+                    UpdateGraphicMode(Memory.STATReg.ScanOAMMode);
+                }
+                else
+                {
+                    // if (memory.LY == displayHeight) {
+                    // UpdateSprite();
+                    // if (memory.STAT.HasFlag(Memory.STATReg.IsEnableVBlankInterrupt)) set irq lcds
+                    // }
+                    UpdateGraphicMode(Memory.STATReg.VBlankMode);
                 }
             }
+            tick++;
+        }
 
-            internal bool DequeueData()
-            {
-                graphic.displayData.x = x++;
-                graphic.displayData.y = memory.LY;
-                graphic.displayData.color = FIFO.Dequeue();
-                return !(x == 160);
-            }
+        private void UpdateGraphicMode(Memory.STATReg mode)
+        {
+            memory.STAT &= (Memory.STATReg)0b11111100;
+            memory.STAT |= mode;
+        }
 
-            internal void Reset()
+        private void UpdateBG()
+        {
+            if (!memory.LCDC.HasFlag(Memory.LCDCReg.IsEnableDisplay)) return;
+            for (byte x = 0; x < displayWidth; x++)
             {
-                x = 0;
-                FIFO.Clear();
+                ushort tilemap = memory.LCDC.HasFlag(Memory.LCDCReg.SelectBGTileMap) ? 0x9C00 : 0x9800;
+                sbyte tileID = (sbyte)memory[tilemap + (((memory.SCX + x) / 8) & 0x1F) + ((memory.SCY + memory.LY) % 0x100 / 8 * 32)];
+                int target = (memory.LY * displayWidth + x) * 4;
+                displayData[target] = displayData[target + 1] = displayData[target + 2] = GetColor(tileID, x);
+                displayData[target + 3] = 255;
             }
         }
 
-        internal class Fetcher
+        private byte GetColor(sbyte tileID, byte x)
         {
-            private enum FetcherState
+            x %= 8;
+            int address = memory.LCDC.HasFlag(Memory.LCDCReg.SelectTileData) ? 0x8000 : 0x9000;
+            address += tileID * 0x10 + (memory.SCY + memory.LY) % 8 * 2;
+            int palette = (memory[address] & (1 << (7 - x))) != 0 ? 1 : 0;
+            if ((memory[address] & (1 << (7 - x))) != 0) palette += 2;
+            return ((memory.BGP >> (palette * 2)) & 0b11) switch
             {
-                ReadTileID,
-                ReadData0,
-                ReadData1,
-                Sleep,
+                0 => 255,
+                1 => 130,
+                2 => 60,
+                3 => 1,
+                _ => 0,
             };
-
-            private readonly Memory memory;
-            private readonly PixelFIFO pixelFIFO;
-            private FetcherState state;
-            private sbyte tileID;
-            private byte data0;
-            private byte data1;
-            private bool workFlag;
-            private byte currentX;
-
-            internal Fetcher(Graphic graphic, Memory memory, PixelFIFO pixelFIFO)
-            {
-                this.memory = memory;
-                this.pixelFIFO = pixelFIFO;
-                state = FetcherState.ReadTileID;
-                workFlag = true;
-            }
-
-            internal void Run()
-            {
-                workFlag = !workFlag;
-                if (!workFlag) return;
-
-                switch (state)
-                {
-                    case FetcherState.ReadTileID:
-                        ushort tilemap = memory.LCDC.HasFlag(Memory.LCDCReg.SelectBGTileMap) ? 0x9C00 : 0x9800;
-                        byte xAddress = (byte)(((memory.SCX / 8) + currentX) & 0x1F);
-                        ushort yAddress = (ushort)(((memory.SCY / 8 + memory.LY / 8) & 0x1F) * 0x20);
-                        tileID = (sbyte)memory.Ram[tilemap + xAddress + yAddress];
-                        state = FetcherState.ReadData0;
-                        break;
-
-                    case FetcherState.ReadData0:
-                        data0 = GetData(0);
-                        state = FetcherState.ReadData1;
-                        break;
-
-                    case FetcherState.ReadData1:
-                        data1 = GetData(1);
-                        state = FetcherState.Sleep;
-                        break;
-                }
-
-                if (state == FetcherState.Sleep && pixelFIFO.Count <= 8)
-                {
-                    pixelFIFO.EnqueueData(data0, data1);
-                    currentX++;
-                    state = FetcherState.ReadTileID;
-                }
-            }
-
-            private byte GetData(int num)
-            {
-                ushort address = memory.LCDC.HasFlag(Memory.LCDCReg.SelectTileData) ? 0x8000 : 0x9000;
-                return memory.Ram[address + tileID * 0x10 + (memory.SCY + memory.LY) % 8 * 2 + num];
-            }
-
-            internal void Reset()
-            {
-                state = FetcherState.ReadTileID;
-                workFlag = true;
-                tileID = (sbyte)(data0 = data1 = 0);
-                currentX = 0;
-            }
         }
     }
 }

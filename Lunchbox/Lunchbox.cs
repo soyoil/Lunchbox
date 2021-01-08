@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Lunchbox
+﻿namespace Lunchbox
 {
     public class Lunchbox
     {
@@ -8,12 +6,12 @@ namespace Lunchbox
         private readonly Memory memory;
         public Graphic graphic;
         public DebugInfo debugInfo;
-        private int tick;
+        private int tick = 0;
 
         // Constructor
-        public Lunchbox()
+        public Lunchbox(string filepath)
         {
-            memory = new Memory();
+            memory = new Memory(filepath);
             cpu = new Cpu(memory);
             graphic = new Graphic(memory);
             debugInfo = new DebugInfo(cpu, memory);
@@ -21,7 +19,7 @@ namespace Lunchbox
 
         public void Run()
         {
-            if (tick++ % 4 == 0) cpu.Run();
+            if (tick-- == 0) tick = cpu.Run();
             // debugInfo.Update();
             graphic.Update();
         }
@@ -39,7 +37,7 @@ namespace Lunchbox
 
         public Lunchbox InjectToMemory(ushort addr, byte value)
         {
-            memory.Ram[addr] = value;
+            memory[addr] = value;
             return this;
         }
 
@@ -47,7 +45,7 @@ namespace Lunchbox
         {
             foreach (var value in valueArray)
             {
-                memory.Ram[startAddr++] = value;
+                memory[startAddr++] = value;
             }
             return this;
         }

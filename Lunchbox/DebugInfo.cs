@@ -9,21 +9,21 @@ namespace Lunchbox
         public string Operand;
         public Dictionary<string, ushort> RegDict;
 
-        private readonly Cpu cpuptr;
-        private readonly Memory memptr;
+        private readonly Cpu _cpu;
+        private readonly Memory _memory;
 
-        public DebugInfo(Cpu cpu, Memory memory)
+        internal DebugInfo(Cpu cpu, Memory memory)
         {
-            cpuptr = cpu;
-            memptr = memory;
+            _cpu = cpu;
+            _memory = memory;
             Update();
         }
 
         public void Update()
         {
-            RegDict = cpuptr.RegDict;
-            Opcode = memptr.Ram[cpuptr.PC];
-            Address = cpuptr.PC;
+            RegDict = _cpu.RegDict;
+            Opcode = _memory[_cpu.PC];
+            Address = _cpu.PC;
         }
     }
 }

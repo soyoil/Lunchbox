@@ -3,9 +3,27 @@ using System.IO;
 
 namespace Lunchbox
 {
-    public partial class Memory
+    internal partial class Memory
     {
-        public byte[] Ram;
+        internal byte this[int index]
+        {
+            get
+            {
+                if (Ram[0xFF50] == 0 && index < 0x100)
+                {
+                    return bootRom[index];
+                }
+                return Ram[index];
+            }
+
+            set
+            {
+                if (index == 0xFF44) return;
+                Ram[index] = value;
+            }
+        }
+
+        private readonly byte[] Ram;
 
         internal LCDCReg LCDC { get => (LCDCReg)Ram[0xFF40]; set => Ram[0xFF40] = (byte)value; }
         internal STATReg STAT { get => (STATReg)Ram[0xFF41]; set => Ram[0xFF41] = (byte)value; }
@@ -13,6 +31,7 @@ namespace Lunchbox
         internal byte SCX { get => Ram[0xFF43]; set => Ram[0xFF43] = value; }
         internal byte LY { get => Ram[0xFF44]; set => Ram[0xFF44] = value; }
         internal byte LYC { get => Ram[0xFF45]; set => Ram[0xFF45] = value; }
+        internal byte BGP { get => Ram[0xFF47]; set => Ram[0xFF47] = value; }
         internal byte WY { get => Ram[0xFF4A]; set => Ram[0xFF4A] = value; }
         internal byte WX { get => Ram[0xFF4B]; set => Ram[0xFF4B] = value; }
 
@@ -43,14 +62,13 @@ namespace Lunchbox
             ScanVRAMMode = 3
         }
 
-        public Memory()
+        internal Memory(string filepath)
         {
             Ram = new byte[0x10000];
             Array.Copy(bootRom, Ram, bootRom.Length);
-            using (var fs = new FileStream(@"d:\gameboy\gbcal\main.gb", FileMode.Open, FileAccess.Read))
+            using (var fs = new FileStream(@filepath, FileMode.Open, FileAccess.Read))
             {
-                fs.Seek(0x100, SeekOrigin.Begin);
-                fs.Read(Ram, 0x100, (int)fs.Length);
+                fs.Read(Ram, 0, (int)fs.Length);
             }
         }
     }
