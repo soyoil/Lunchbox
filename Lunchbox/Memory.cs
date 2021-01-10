@@ -32,6 +32,7 @@ namespace Lunchbox
         internal byte SCX { get => Ram[0xFF43]; set => Ram[0xFF43] = value; }
         internal byte LY { get => Ram[0xFF44]; set => Ram[0xFF44] = value; }
         internal byte LYC { get => Ram[0xFF45]; set => Ram[0xFF45] = value; }
+        internal byte DMA { get => Ram[0xFF46]; set => Ram[0xFF46] = value; }
         internal byte BGP { get => Ram[0xFF47]; set => Ram[0xFF47] = value; }
         internal byte WY { get => Ram[0xFF4A]; set => Ram[0xFF4A] = value; }
         internal byte WX { get => Ram[0xFF4B]; set => Ram[0xFF4B] = value; }

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Lunchbox
 {
@@ -132,20 +131,13 @@ namespace Lunchbox
             }
         }
 
-        private bool GetFlag(Flags flag)
-        {
-            return F.HasFlag(flag);
-        }
+        private bool GetFlag(Flags flag) => F.HasFlag(flag);
 
         public int Run()
         {
             if (isHalted)
             {
-                if (memory.IF != 0)
-                {
-                    isHalted = false;
-                    // PC--;
-                }
+                if (memory.IF != 0) isHalted = false;
                 return 4;
             }
 
@@ -204,10 +196,7 @@ namespace Lunchbox
             }
         }
 
-        private ushort GetTwoBitesFromRam()
-        {
-            return (ushort)(memory[++PC] + memory[++PC] * 0x100);
-        }
+        private ushort GetTwoBitesFromRam() => (ushort)(memory[++PC] + memory[++PC] * 0x100);
 
         private void Push(ushort value)
         {
@@ -215,10 +204,7 @@ namespace Lunchbox
             memory[--SP] = (byte)(value & 0xFF);
         }
 
-        private ushort Pop()
-        {
-            return (ushort)(memory[SP++] + (memory[SP++] << 8));
-        }
+        private ushort Pop() => (ushort)(memory[SP++] + (memory[SP++] << 8));
 
         private void Add(byte value, bool isADC = false)
         {
@@ -250,10 +236,7 @@ namespace Lunchbox
             return (ushort)result;
         }
 
-        private void Sub(byte value, bool isSBC = false)
-        {
-            A = Cp(value, isSBC);
-        }
+        private void Sub(byte value, bool isSBC = false) => A = Cp(value, isSBC);
 
         private byte Cp(byte value, bool isSBC = false)
         {
@@ -268,7 +251,7 @@ namespace Lunchbox
         private void And(byte value)
         {
             A = (byte)(A & value);
-            SetFlag(Flags.Z, A != 0);
+            SetFlag(Flags.Z, A == 0);
             SetFlag(Flags.N, false);
             SetFlag(Flags.H, true);
             SetFlag(Flags.C, false);
@@ -277,7 +260,7 @@ namespace Lunchbox
         private void Or(byte value)
         {
             A = (byte)(A | value);
-            SetFlag(Flags.Z, A != 0);
+            SetFlag(Flags.Z, A == 0);
             SetFlag(Flags.N, false);
             SetFlag(Flags.H, false);
             SetFlag(Flags.C, false);
@@ -286,7 +269,7 @@ namespace Lunchbox
         private void Xor(byte value)
         {
             A = (byte)(A ^ value);
-            SetFlag(Flags.Z, A != 0);
+            SetFlag(Flags.Z, A == 0);
             SetFlag(Flags.N, false);
             SetFlag(Flags.H, false);
             SetFlag(Flags.C, false);
@@ -328,22 +311,24 @@ namespace Lunchbox
             A = (byte)a;
         }
 
-        private void RotateLeft(ref byte register, bool circular, bool onlyShift)
+        private void RotateLeft(int selector, bool circular, bool onlyShift)
         {
-            byte top = (byte)(register >> 7);
-            register = (byte)(register << 1);
+            byte result = GetValueFromSelector(selector);
+            byte top = (byte)(result >> 7);
+            result = (byte)(result << 1);
             if (onlyShift)
             {
-                SetFlag(Flags.Z, register == 0);
+                SetFlag(Flags.Z, result == 0);
             }
             else
             {
-                register += circular ? top : Convert.ToByte(F.HasFlag(Flags.C));
+                result += circular ? top : Convert.ToByte(F.HasFlag(Flags.C));
                 SetFlag(Flags.Z, false);
             }
             SetFlag(Flags.C, Convert.ToBoolean(top));
             SetFlag(Flags.N, false);
             SetFlag(Flags.H, false);
+            SetValueFromSelector(selector, result);
         }
 
         private void AbsoluteJump(Flags flag = 0, bool isTrue = false)
@@ -406,20 +391,58 @@ namespace Lunchbox
             PC = (ushort)(addr & 0xFF - 1);
         }
 
+        private void Bit(int selector, int place)
+        {
+            SetFlag(Flags.Z, GetValueFromSelector(selector) >> place == 0);
+            SetFlag(Flags.N, false);
+            SetFlag(Flags.H, true);
+        }
+
+        private void Set(int selector, int place) => SetValueFromSelector(selector, (byte)(GetValueFromSelector(selector) | 1 << place));
+
+        private void Reset(int selector, int place) => SetValueFromSelector(selector, (byte)(GetValueFromSelector(selector) & ~(1 << place)));
+
+        private byte GetValueFromSelector(int selector) => selector switch
+        {
+            0 => B,
+            1 => C,
+            2 => D,
+            3 => E,
+            4 => H,
+            5 => L,
+            6 => memory[HL],
+            7 => A,
+            _ => 0
+        };
+
+        private byte SetValueFromSelector(int selector, byte value) => selector switch
+        {
+            0 => B = value,
+            1 => C = value,
+            2 => D = value,
+            3 => E = value,
+            4 => H = value,
+            5 => L = value,
+            6 => memory[HL] = value,
+            7 => A = value,
+            _ => 0
+        };
+
         private void PrefixCB()
         {
-            switch (memory[++PC])
-            {
-                case 0x11:
-                    RotateLeft(ref C, false, false);
-                    break;
+            byte subop = memory[++PC];
 
-                case 0x7C:
-                    SetFlag(Flags.Z, H >> 7 == 0);
-                    SetFlag(Flags.N, false);
-                    SetFlag(Flags.H, true);
-                    break;
-            }
+            if (subop <= 0x07) RotateLeft(subop, true, false);
+            else if (subop <= 0x0F) return; // RotateRight(subop % 0x08, true, false);
+            else if (subop <= 0x17) RotateLeft(subop % 0x10, false, false);
+            else if (subop <= 0x1F) return; // RotateRight(subop % 0x18, false, false);
+            else if (subop <= 0x27) RotateLeft(subop % 0x20, false, true);
+            else if (subop <= 0x2F) return; // RotateRight(subop % 0x28, false, true);
+            else if (subop <= 0x37) return; // swap
+            else if (subop <= 0x3F) return; // srl
+            else if (subop <= 0x7F) Bit((subop & 0xF) % 8, (subop - 0x40) / 8);
+            else if (subop <= 0xBF) Reset((subop & 0xF) % 8, (subop - 0x80) / 8);
+            else if (subop <= 0xFF) Set((subop & 0xF) % 8, (subop - 0xC0) / 8);
         }
-    }
+    } 
 }

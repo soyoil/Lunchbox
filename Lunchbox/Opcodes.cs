@@ -278,8 +278,8 @@ namespace Lunchbox
             ops[0xF3] = () => IME = false;
             ops[0xFB] = () => IME = true;
 
-            ops[0x07] = () => RotateLeft(ref A, true, false);
-            ops[0x17] = () => RotateLeft(ref A, false, false);
+            ops[0x07] = () => RotateLeft(7, true, false);
+            ops[0x17] = () => RotateLeft(7, false, false);
 
             ops[0xC3] = () => AbsoluteJump();
             ops[0xDA] = () => AbsoluteJump(Flags.C, true);
