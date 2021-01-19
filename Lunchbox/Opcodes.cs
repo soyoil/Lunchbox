@@ -113,8 +113,8 @@ namespace Lunchbox
 
             ops[0x08] = () =>
             {
-                memory[++PC] = (byte)(SP & 0xFF);
-                memory[++PC] = (byte)(SP >> 4);
+                memory[memory[++PC]] = (byte)(SP & 0xFF);
+                memory[memory[++PC]] = (byte)(SP >> 4);
             };
 
             ops[0xC5] = () => Push(BC);
@@ -164,7 +164,7 @@ namespace Lunchbox
             ops[0x9C] = () => Sub(H, true);
             ops[0x9D] = () => Sub(L, true);
             ops[0x9F] = () => Sub(A, true);
-            ops[0xDE] = () => Sub(memory[++PC], true);
+            ops[0xDE] = () => Sub(memory[memory[++PC]], true);
             ops[0x9E] = () => Sub(memory[HL], true);
 
             ops[0xA0] = () => And(B);
@@ -174,7 +174,7 @@ namespace Lunchbox
             ops[0xA4] = () => And(H);
             ops[0xA5] = () => And(L);
             ops[0xA7] = () => And(A);
-            ops[0xE6] = () => And(memory[++PC]);
+            ops[0xE6] = () => And(memory[memory[++PC]]);
             ops[0xA6] = () => And(memory[HL]);
 
             ops[0xB0] = () => Or(B);
@@ -184,7 +184,7 @@ namespace Lunchbox
             ops[0xB4] = () => Or(H);
             ops[0xB5] = () => Or(L);
             ops[0xB7] = () => Or(A);
-            ops[0xF6] = () => Or(memory[++PC]);
+            ops[0xF6] = () => Or(memory[memory[++PC]]);
             ops[0xB6] = () => Or(memory[HL]);
 
             ops[0xA8] = () => Xor(B);
@@ -265,11 +265,7 @@ namespace Lunchbox
             };
 
             ops[0x00] = () => { };
-            ops[0x76] = () =>
-            {
-                // PC++;
-                isHalted = true;
-            };
+            ops[0x76] = () => isHalted = true;
             ops[0x10] = () =>
             {
                 // STOP, TODO
@@ -280,6 +276,9 @@ namespace Lunchbox
 
             ops[0x07] = () => RotateLeft(7, true, false);
             ops[0x17] = () => RotateLeft(7, false, false);
+
+            ops[0x0F] = () => RotateRight(7, true, false, false);
+            ops[0x1F] = () => RotateRight(7, false, false, false);
 
             ops[0xC3] = () => AbsoluteJump();
             ops[0xDA] = () => AbsoluteJump(Flags.C, true);

@@ -26,7 +26,7 @@ namespace Lunchbox
         {
             get
             {
-                return (ushort)(A * 0x100 + F);
+                return (ushort)(A * 0x100 + (byte)F);
             }
             set
             {
@@ -91,7 +91,7 @@ namespace Lunchbox
 
         // Flags set
         [Flags]
-        private enum Flags
+        private enum Flags : byte
         {
             Z = 1 << 7,
             N = 1 << 6,
@@ -137,7 +137,8 @@ namespace Lunchbox
         {
             if (isHalted)
             {
-                if (memory.IF != 0) isHalted = false;
+                if (memory.IF != 0) 
+                    isHalted = false;
                 return 4;
             }
 
@@ -208,10 +209,10 @@ namespace Lunchbox
 
         private void Add(byte value, bool isADC = false)
         {
-            int result = A + value + Convert.ToInt32(isADC);
+            int result = A + value + (isADC ? Convert.ToInt32(F.HasFlag(Flags.C)) : 0);
             SetFlag(Flags.Z, (byte)result == 0);
             SetFlag(Flags.N, false);
-            SetFlag(Flags.H, (A & 0xF) + (value & 0xF) + Convert.ToInt32(isADC) > 0xF);
+            SetFlag(Flags.H, (A & 0xF) + (value & 0xF) + (isADC ? Convert.ToInt32(F.HasFlag(Flags.C)) : 0) > 0xF);
             SetFlag(Flags.C, result > 0xFF);
             A = (byte)result;
         }
@@ -240,10 +241,10 @@ namespace Lunchbox
 
         private byte Cp(byte value, bool isSBC = false)
         {
-            int result = A - value - Convert.ToInt32(isSBC);
+            int result = A - value - (isSBC ? Convert.ToInt32(F.HasFlag(Flags.C)) : 0);
             SetFlag(Flags.Z, result == 0);
             SetFlag(Flags.N, true);
-            SetFlag(Flags.H, (A & 0xF) + (value & 0xF) + Convert.ToInt32(isSBC) < 0);
+            SetFlag(Flags.H, (A & 0xF) - (value & 0xF) - (isSBC ? Convert.ToInt32(F.HasFlag(Flags.C)) : 0) < 0);
             SetFlag(Flags.C, result < 0);
             return (byte)result;
         }
@@ -331,6 +332,27 @@ namespace Lunchbox
             SetValueFromSelector(selector, result);
         }
 
+        private void RotateRight(int selector, bool circular, bool onlyShift, bool keepBit7)
+        {
+            int result = GetValueFromSelector(selector);
+            int top = result & 1;
+            result >>= 1;
+            if (onlyShift)
+            {
+                if (keepBit7) result += (result & 0b01000000) << 1;
+                SetFlag(Flags.Z, result == 0);
+            }
+            else
+            {
+                result += circular ? top << 7 : Convert.ToByte(F.HasFlag(Flags.C)) << 7;
+                SetFlag(Flags.Z, false);
+            }
+            SetFlag(Flags.C, Convert.ToBoolean(top));
+            SetFlag(Flags.N, false);
+            SetFlag(Flags.H, false);
+            SetValueFromSelector(selector, (byte)result);
+        }
+
         private void AbsoluteJump(Flags flag = 0, bool isTrue = false)
         {
             if (flag == 0 || F.HasFlag(flag) == isTrue)
@@ -391,9 +413,22 @@ namespace Lunchbox
             PC = (ushort)(addr & 0xFF - 1);
         }
 
+        private void Swap(int selector)
+        {
+            int buf = GetValueFromSelector(selector);
+            int high = buf & 0b11110000;
+            buf <<= 4;
+            buf += high >> 4;
+            SetFlag(Flags.Z, buf == 0);
+            SetFlag(Flags.N, false);
+            SetFlag(Flags.H, false);
+            SetFlag(Flags.C, false);
+            SetValueFromSelector(selector, (byte)buf);
+        }
+
         private void Bit(int selector, int place)
         {
-            SetFlag(Flags.Z, GetValueFromSelector(selector) >> place == 0);
+            SetFlag(Flags.Z, (GetValueFromSelector(selector) & (1 << place)) == 0);
             SetFlag(Flags.N, false);
             SetFlag(Flags.H, true);
         }
@@ -433,13 +468,13 @@ namespace Lunchbox
             byte subop = memory[++PC];
 
             if (subop <= 0x07) RotateLeft(subop, true, false);
-            else if (subop <= 0x0F) return; // RotateRight(subop % 0x08, true, false);
+            else if (subop <= 0x0F) RotateRight(subop % 0x08, true, false, false);
             else if (subop <= 0x17) RotateLeft(subop % 0x10, false, false);
-            else if (subop <= 0x1F) return; // RotateRight(subop % 0x18, false, false);
+            else if (subop <= 0x1F) RotateRight(subop % 0x18, false, false, false);
             else if (subop <= 0x27) RotateLeft(subop % 0x20, false, true);
-            else if (subop <= 0x2F) return; // RotateRight(subop % 0x28, false, true);
-            else if (subop <= 0x37) return; // swap
-            else if (subop <= 0x3F) return; // srl
+            else if (subop <= 0x2F) RotateRight(subop % 0x28, false, true, true);
+            else if (subop <= 0x37) Swap(subop % 0x30);
+            else if (subop <= 0x3F) RotateRight(subop % 0x38, false, true, false);
             else if (subop <= 0x7F) Bit((subop & 0xF) % 8, (subop - 0x40) / 8);
             else if (subop <= 0xBF) Reset((subop & 0xF) % 8, (subop - 0x80) / 8);
             else if (subop <= 0xFF) Set((subop & 0xF) % 8, (subop - 0xC0) / 8);

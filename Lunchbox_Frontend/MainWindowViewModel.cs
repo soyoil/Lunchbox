@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32;
 using System;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -36,5 +37,8 @@ namespace Lunchbox_Frontend
             timer.Tick += (object sender, EventArgs e) => Screen.WritePixels(new Int32Rect(0, 0, width, height), emulatorModel.Buffer, width * 4, 0, 0);
             timer.Start();
         }
+
+        public void OnKeyDownHandler(object sender, KeyEventArgs e) => emulatorModel.HandleKeyDown(e.Key);
+        public void OnKeyUpHandler(object sender, KeyEventArgs e) => emulatorModel.HandleKeyUp(e.Key);
     }
 }
